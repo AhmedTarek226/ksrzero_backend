@@ -1,0 +1,200 @@
+const express = require("express");
+const multer = require("multer");
+const router = express.Router();
+const users = require("../model/users");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
+const { json } = require("express");
+const dotenv = require("dotenv").config();
+
+//////register mobile
+router.post("/register", function (req, res) {
+  // console.log(req.);
+  let cipher = crypto.createCipher("aes-256-ctr", req.body.password);
+  let crypted = cipher.update(req.body.password, "utf-8", "hex");
+  crypted += cipher.final("hex");
+  let x = req.body;
+  x.password = crypted;
+  users.create(x, function (err, data) {
+    if (err) {
+      console.log("Error!!!!!!!!!!!");
+      res.send("failed");
+      // res.end();
+    } else {
+      let secret = process.env.TOKEN_SECRET;
+      // let token = jwt.sign(data.email, secret);
+      res.setHeader("authorization", "token");
+      // console.log(token);
+      res.send("success");
+    }
+  });
+});
+//////Login mobile
+router.post("/login", function (req, res) {
+  console.log(req.body);
+  let decipher = crypto.createDecipher("aes-256-ctr", req.body.password);
+  let decrypted = decipher.update(req.body.password, "utf-8", "hex");
+  decrypted += decipher.final("hex");
+  let x = req.body;
+  x.password = decrypted;
+  if (!req.headers.authorization) {
+    users
+      .findOne({ $and: [{ email: req.body.email }, { password: x.password }] })
+      .then((err, data) => {
+        if (!err) res.send("failed");
+        else {
+          let secret = process.env.TOKEN_SECRET;
+          // let token = jwt.sign(data.email, secret);
+          res.setHeader("authorization", "token");
+          res.send("success");
+        }
+      });
+  } else {
+    let tokn = req.headers.authorization;
+    let secret = process.env.TOKEN_SECRET;
+    let detoken = jwt.verify(tokn, secret);
+    if (req.body.email == detoken) {
+      console.log("token succeeded!!!");
+      res.send("token succeeded!!!");
+    } else {
+      console.log("token failed!!!!!!!!!!");
+      res.send("token failed!!!!!!!!!!");
+    }
+  }
+});
+
+//get user mobile
+//Update User from addtocart page
+router.get("/getUser/:email", function (req, res) {
+  users.findOne({ email: req.params.email }).then((data, err) => {
+    if (data) res.send(data);
+    else res.send("failed");
+  });
+});
+
+//Update User from addtocart page
+router.post("/confirm/:id", function (req, res) {
+  users
+    .findByIdAndUpdate(
+      { _id: req.params.id },
+      {
+        phone_number: Number(req.body.phone),
+        address: { st: req.body.address },
+      }
+    )
+    .then((err, data) => {
+      if (!err) res.send("ERR!!");
+      else res.send("Updated!");
+    });
+});
+
+router.post("/removefromcart/:id/:idp", function (req, res) {
+  users.findOne({ _id: req.params.id }).then((data, err) => {
+    if (err) res.send("ERRRRRR!!!!!");
+    else {
+      data.cart.remove(req.params.idp);
+      data.save();
+      res.send(data);
+    }
+  });
+});
+//Add item to cart from product page
+router.post("/addtocart/:id/:idp", function (req, res) {
+  users.findOne({ _id: req.params.id }).then((data, err) => {
+    if (err) {
+      console.log(req.err);
+      res.send({ s: true, error: err });
+    } else {
+      data.cart.push(req.params.idp);
+      data.save();
+      res.send(data);
+    }
+  });
+});
+//////////////////////////get user///////////////////////////////////
+router.get("/getUser/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    const user = await users.findById(id);
+    res.send(user);
+  } catch (err) {
+    res.send("something went wrong");
+  }
+});
+
+//////////////////////////update user info///////////////////////////////////
+router.patch("/updateUser/:id", async (req, res) => {
+  const body = req.body;
+  const id = req.params.id;
+  try {
+    const user = await users.findByIdAndUpdate(id, body);
+    res.send(user);
+  } catch (err) {
+    res.send("something went wrong");
+  }
+});
+
+router.patch("/updateUserflutter/:id", async (req, res) => {
+  const body = req.body;
+  const id = req.params.id;
+  console.log(body);
+  let foundBefore = await users.findOne(
+    {
+      $or: [{ email: body.email }, { phoneNumber: body.phoneNumber }],
+    },
+    { _id: 1 }
+  );
+  console.log(foundBefore);
+  if (
+    foundBefore._id === null ||
+    foundBefore._id.toString() == req.params.id
+  ) {
+    try {
+      users
+        .findOne({ _id: req.params.id })
+        .then((Data) => {
+          Data.userName = body.userName;
+          Data.email = body.email;
+          Data.phoneNumber = body.phoneNumber;
+          Data.address = {
+            area: body.area,
+            blockNumber: parseInt(body.blockNumber),
+            city: body.city,
+            st: body.st,
+          };
+          Data.save();
+          res.send("success");
+        })
+        .catch((err) => {
+          res.send("invalid user");
+        });
+    } catch (err) {
+      res.send("failed");
+    }
+  } else {
+    // console.log("new");
+    res.send("already exist");
+  }
+});
+
+//////////////////////////add to wishlist///////////////////////////////////
+router.post("/addWishlist/:id", async (req, res) => {
+  await users.findByIdAndUpdate(req.params.id, {
+    $push: { wishlist: { title: req.body.title } },
+  });
+  res.send("done");
+});
+
+/////////////////////////delete from wishlist/////////////////////////////
+router.delete("/deleteFromWishlist/:id", async (req, res) => {
+  const title = req.body.title;
+  const user = await users.findById(req.params.id);
+  let wishlist = user.wishlist;
+  wishlist = wishlist.filter((item) => {
+    return item.title != title;
+  });
+  await users.findByIdAndUpdate(req.params.id, { wishlist });
+  res.send("done");
+});
+
+module.exports = router;
