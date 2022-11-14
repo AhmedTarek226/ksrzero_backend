@@ -85,19 +85,20 @@ router.get("/dashboard", async (req, res) => {
     let numOfUsers = await users.find({}).count();
     let numOfCategories = await category.find({}).count();
     let numOfPendingAds = await product.find({ status: "pending" }).count();
-    let numOfDeliveredOrders = await order
-      .find({ $and: [{ exchangable: false }, { status: "delivered" }] })
-      .count();
-
-    numOfDeliveredOrders += await order
-      .find({
-        $and: [
-          { exchangable: true },
-          { status: "delivered" },
-          { "exchangeProperties.status": "delivered" },
-        ],
-      })
-      .count();
+    let numOfProducts = await product.find({}).count();
+    // let numOfDeliveredOrders = await order
+    //   .find({ $and: [{ exchangable: false }, { status: "delivered" }] })
+    //   .count();
+    // /////////////////////////////////////////
+    // numOfDeliveredOrders += await order
+    //   .find({
+    //     $and: [
+    //       { exchangable: true },
+    //       { status: "delivered" },
+    //       { "exchangeProperties.status": "delivered" },
+    //     ],
+    //   })
+    //   .count();
     // latest updates tables
     let newUsers = await users.find({}).sort({ time: -1 }).limit(5);
     let pendingAds = await product
@@ -129,7 +130,7 @@ router.get("/dashboard", async (req, res) => {
       numOfUsers: numOfUsers,
       numOfCategories: numOfCategories,
       numOfPendingAds: numOfPendingAds,
-      numOfDeliveredOrders: numOfDeliveredOrders,
+      numOfProducts: numOfProducts,
       newUsers: newUsers,
       pendingAds: pendingAds,
       newOrders: newOrders,
@@ -211,7 +212,9 @@ router.get("/finduser/:id", async (req, res) => {
 //todo
 router.get("/categories/:categoryId", async (req, res) => {
   try {
-    let products = await product.find({ categoryId: req.params.categoryId });
+    let products = await product.find({
+      $and: [{ categoryId: req.params.categoryId }, { status: "active" }],
+    });
     res.send(products);
   } catch (err) {
     res.send(err);
@@ -274,11 +277,54 @@ router.get("/details/:categoryId", (req, res) => {
     }
   });
 });
-/////////////////////////////delivered orders///////////////////////////////
-router.get("/deliveredOrders", async (req, res) => {
+
+/////////////////////////////delivered buying orders///////////////////////////////
+router.get("/deliveredBuyingOrders", async (req, res) => {
   try {
     let deliveredOrders = await order
-      .find({ status: "delivered" })
+      .find({ $and: [{ status: "delivered", exchangable: false }] })
+      .sort({ time: -1 });
+    let ordersDetails = [];
+    for (let i = 0; i < deliveredOrders.length; i++) {
+      let orderProductDetails = await product.findOne(
+        { _id: deliveredOrders[i].productId },
+        { title: 1, _id: 0, img: 1 }
+      );
+      let orderBuyerDetails = await users.findOne(
+        { _id: deliveredOrders[i].buyerId },
+        { _id: 0, userName: 1, address: 1, phoneNumber: 1 }
+      );
+      let orderSellerDetails = await users.findOne(
+        { _id: deliveredOrders[i].sellerId },
+        { _id: 0, userName: 1, address: 1, phoneNumber: 1 }
+      );
+      ordersDetails.push({
+        orderProductDetails: orderProductDetails,
+        orderBuyerDetails: orderBuyerDetails,
+        orderSellerDetails: orderSellerDetails,
+      });
+    }
+    res.send({
+      deliveredOrders: deliveredOrders,
+      ordersDetails: ordersDetails,
+    });
+  } catch (err) {
+    res.send(err);
+  }
+});
+/////////////////////////////delivered exchanging orders///////////////////////////////
+router.get("/deliveredExchangingOrders", async (req, res) => {
+  try {
+    let deliveredOrders = await order
+      .find({
+        $and: [
+          {
+            status: "delivered",
+            exchangable: true,
+            "exchangeProperties.status": "delivered",
+          },
+        ],
+      })
       .sort({ time: -1 });
     let ordersDetails = [];
     for (let i = 0; i < deliveredOrders.length; i++) {
@@ -523,19 +569,19 @@ router.post(
       { _id: 1 }
     );
     if (result == null) {
-      res.json({messge:"invalid user"});
+      res.json({ messge: "invalid user" });
     } else {
       userId = result._id;
     }
     req.body.userId = userId;
     product.create(req.body, function (err, data) {
       if (err) {
-        res.json({messge:"failed"});
+        res.json({ messge: "failed" });
       } else {
         users
           .updateOne({ _id: userId }, { $push: { ads: data._id } })
-          .then((response) => res.json({messge:"success"}))
-          .catch((err) => res.json({messge:"failed"}));
+          .then((response) => res.json({ messge: "success" }))
+          .catch((err) => res.json({ messge: "failed" }));
       }
     });
   }

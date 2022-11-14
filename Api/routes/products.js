@@ -16,48 +16,49 @@ const storage = multer.diskStorage({
 });
 const multi_upload = multer({
   storage: storage,
-  // fileFilter: (req, file, cb) => {
-  //   if (
-  //     file.mimetype == "image/png" ||
-  //     file.mimetype == "image/jpg" ||
-  //     file.mimetype == "image/jpeg"
-  //   ) {
-  //     cb(null, true);
-  //   } else {
-  //     cb(null, false);
-  //     const err = new Error("Only .png, .jpg and .jpeg format allowed!");
-  //     err.name = "ExtensionError";
-  //     return cb(err);
-  //   }
-  // },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype == "application/octet-stream" ||
+      file.mimetype == "image/png" ||
+      file.mimetype == "image/jpg" ||
+      file.mimetype == "image/jpeg"
+    ) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+      const err = new Error("Only .png, .jpg and .jpeg format allowed!");
+      err.name = "ExtensionError";
+      return cb(err);
+    }
+  },
 });
 
-router.post(
-  "/addFromMob/:userId",
-  multi_upload.array("img", 10),
-  function (req, res) {
-    // let imgarry = [];
-    console.log("ana wslt");
-    console.log(req.files);
-    // for (const a of req.body.img) {
-    //   console.log(a);
-    // }
-    // req.body.img = imgarry;
-    // req.body.userId = req.params.userId;
-    // product.create(req.body, function (err, data) {
-    //   if (err) {
-    //     console.log(err);
-    //     res.end();
-    //   } else {
-    //     users
-    //       .updateOne({ _id: req.params.userId }, { $push: { ads: data._id } })
-    //       .then((response) => res.send("success"))
-    //       .catch((err) => res.send("failed"));
-    //     // console.log(data._id);
-    //   }
-    // });
-  }
-);
+// router.post(
+//   "/addFromMob/:userId",
+//   multi_upload.array("img", 10),
+//   function (req, res) {
+//     let imgarry = [];
+//     for (const a of req.files) {
+//       imgarry.push(a.path);
+//     }
+//     // console.log(req.files);
+//     // console.log(imgarry);
+//     req.body.img = imgarry;
+//     req.body.userId = req.params.userId;
+//     product.create(req.body, function (err, data) {
+//       if (err) {
+//         console.log(err);
+//         res.end();
+//       } else {
+//         users
+//           .updateOne({ _id: req.params.userId }, { $push: { ads: data._id } })
+//           .then((response) => res.send("success"))
+//           .catch((err) => res.send("failed"));
+//         // console.log(data._id);
+//       }
+//     });
+//   }
+// );
 
 router.post("/add/:userId", multi_upload.array("img", 10), function (req, res) {
   let imgarry = [];
@@ -65,21 +66,21 @@ router.post("/add/:userId", multi_upload.array("img", 10), function (req, res) {
     imgarry.push(a.path);
   }
   console.log(req.files);
-  // console.log(imgarry);
-  // req.body.img = imgarry;
-  // req.body.userId = req.params.userId;
-  // product.create(req.body, function (err, data) {
-  //   if (err) {
-  //     console.log(err);
-  //     res.end();
-  //   } else {
-  //     users
-  //       .updateOne({ _id: req.params.userId }, { $push: { ads: data._id } })
-  //       .then((response) => res.send("success"))
-  //       .catch((err) => res.send("failed"));
-  //     // console.log(data._id);
-  //   }
-  // });
+  console.log(imgarry);
+  req.body.img = imgarry;
+  req.body.userId = req.params.userId;
+  product.create(req.body, function (err, data) {
+    if (err) {
+      console.log(err);
+      res.end();
+    } else {
+      users
+        .updateOne({ _id: req.params.userId }, { $push: { ads: data._id } })
+        .then((response) => res.send("success"))
+        .catch((err) => res.send("failed"));
+      // console.log(data._id);
+    }
+  });
 });
 
 router.get("/getProduct/:productId", function (req, res) {
@@ -109,21 +110,21 @@ router.get("/getProduct/:productId", function (req, res) {
 });
 
 router.get("/categories/:categoryId", async (req, res) => {
-  try{
-      let categories = await category.findOne({"_id":req.params.categoryId});
-        // console.log(categories);
-      res.send(categories);
-  }catch (err) {
-      res.send(err);
+  try {
+    let categories = await category.findOne({ _id: req.params.categoryId });
+    // console.log(categories);
+    res.send(categories);
+  } catch (err) {
+    res.send(err);
   }
 });
 
 router.get("/categories", async (req, res) => {
   try {
-      let categories = await category.find({});
-      res.send(categories);
+    let categories = await category.find({});
+    res.send(categories);
   } catch (err) {
-      res.send(err);
+    res.send(err);
   }
 });
 
@@ -156,7 +157,7 @@ router.get("/ads/:id", async (req, res) => {
 });
 
 router.get("/products", function (req, res) {
-  product.find({status:"active"}).then((data, err) => {
+  product.find({ status: "active" }).then((data, err) => {
     if (err) res.send("failed");
     else res.send(data);
   });
