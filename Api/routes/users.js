@@ -101,16 +101,34 @@ router.post("/removefromcart/:id/:idp", function (req, res) {
 });
 //Add item to cart from product page
 router.post("/addtocart/:id/:idp", function (req, res) {
+  console.log(req.params.id);
   users.findOne({ _id: req.params.id }).then((data, err) => {
     if (err) {
       console.log(req.err);
-      res.send({ s: true, error: err });
+      res.send("failed");
     } else {
       data.cart.push(req.params.idp);
       data.save();
       res.send(data);
     }
   });
+});
+
+//Get cart items
+router.get("/cartitems/:id", async function (req, res) {
+  let itms = [];
+  let arrr = [];
+  await users.findById({ _id: req.params.id }, {}).then((data, err) => {
+    itms = [...data.cart];
+  });
+  await Promise.all(
+    itms.map(async (item, index) => {
+      await product.find({ _id: item }, {}).then((dt, er) => {
+        arrr.push(dt[0]);
+      });
+    })
+  );
+  res.send(arrr);
 });
 //////////////////////////get user///////////////////////////////////
 router.get("/getUser/:id", async (req, res) => {
