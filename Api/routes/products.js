@@ -128,6 +128,19 @@ router.get("/categories", async (req, res) => {
   }
 });
 
+router.post("/sendoffer/:wanted/:offerd", async function (req, res) {
+  await product.findOne({ "_id": req.params.wanted }, {}).then((data, err) => {
+      if (!data.offers.includes(req.params.offerd)) {
+          data.offers.push(req.params.offerd)
+          data.save()
+          res.send(data)
+      }
+      else {
+          res.send("failed")
+      }
+  })
+})
+
 router.get("/offers/:id", async (req, res) => {
   let prodList = [];
   product
@@ -161,6 +174,96 @@ router.get("/products", function (req, res) {
     if (err) res.send("failed");
     else res.send(data);
   });
+});
+
+var paypal = require("paypal-rest-sdk");
+paypal.configure({
+  mode: "sandbox", //sandbox or live
+  client_id:
+    "AVYY-0QqCVo-c5AB3nFkdDQ_nTWzmxAcbQygvjHY63ar8JifLxFjjqBQ1JXBPDznMllOFXkumsq89X97",
+  client_secret:
+    "EM7rec8i6AU7ehxPaasYg25QpDTITxmZcd-BP3Mj_fRCOjJoX70COviCXyJnD_vzh9L9yDZmh-JGq1Zw",
+});
+var amount = 0;
+router.post("/paypal", function (req, res) {
+  amount = req.body.price;
+  console.log("hgfghf");
+  var create_payment_json = {
+    intent: "sale",
+    payer: {
+      payment_method: "paypal",
+    },
+    redirect_urls: {
+      return_url: "http://192.168.1.108:4000/product/success",
+      cancel_url: "http://cancel.url",
+    },
+    transactions: [
+      {
+        item_list: {
+          items: [
+            {
+              name: "item",
+              sku: "item",
+              price: amount,
+              currency: "USD",
+              quantity: 1,
+            },
+          ],
+        },
+        amount: {
+          currency: "USD",
+          total: amount,
+        },
+        description: "This is the payment description.",
+      },
+    ],
+  };
+  paypal.payment.create(create_payment_json, (error, payment) => {
+    // console.log("create")
+    if (error) {
+      // console.log(error.response);
+      throw error;
+    } else {
+      // console.log(payment)
+      for (var index = 0; index < payment.links.length; index++) {
+        //Redirect user to this endpoint for redirect url
+        if (payment.links[index].rel === "approval_url") {
+          res.redirect(payment.links[index].href);
+        }
+      }
+      // console.log(payment);
+    }
+  });
+});
+
+router.get("/success", function (req, res) {
+  console.log(req.query);
+  var execute_payment_json = {
+    payer_id: req.query.PayerID,
+    transactions: [
+      {
+        amount: {
+          currency: "USD",
+          total: amount,
+        },
+      },
+    ],
+  };
+  var paymentId = req.query.paymentId;
+  paypal.payment.execute(
+    paymentId,
+    execute_payment_json,
+    function (error, payment) {
+      if (error) {
+        console.log(error.response);
+        throw error;
+      } else {
+        console.log("Get Payment Response");
+        console.log(JSON.stringify(payment));
+        res.send("success");
+      }
+    }
+  );
 });
 
 module.exports = router;

@@ -393,19 +393,25 @@ router.get("/buyingOrders", async (req, res) => {
 });
 // update status of buyingOrders
 router.post("/buyingOrders/:id/updatestatus/:newStatus", function (req, res) {
-  // if (req.params.newStatus == "canceled") {
+  // if delivered remove product from pro,ads,cart
+  //set product status active
+  
+  if (req.params.newStatus == "canceled") {
 
-  //   order.findOneAndRemove({ _id: req.params.id }).then(() => {
-  //     let userss = users.find(
-  //       { orders: { $in: [req.params.id] } },
-  //       { orders: 1 }
-  //     );
-  //     let orders = userss.orders.filter((order) => {
-  //       order["_id"] != req.params.id;
-  //     });
-  //     users.findByIdAndUpdate(userss._id, { orders }).then((_)=>res.send("success"));
-  //   }).catch((err)=>res.send(err));
-  // }
+    order.findOneAndRemove({ _id: req.params.id }).then(async () => {
+      let userss = await users.findOne(
+        { orders: { $in: [req.params.id] } },
+        { orders: 1 }
+      );
+      let orders = userss.orders.filter((order) => {
+        order["_id"] != req.params.id;
+      });
+      userss.orders = order;
+      userss.save();
+      res.send("success");
+      // users.findByIdAndUpdate(userss._id, { orders }).then((_)=>res.send("success"));
+    }).catch((err)=>res.send("failed"));
+  }
   order
     .findOne({ _id: req.params.id })
     .then((data) => {

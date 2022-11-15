@@ -5,6 +5,7 @@ const users = require("../model/users");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { json } = require("express");
+const product = require("../model/product");
 const dotenv = require("dotenv").config();
 
 //////register mobile
@@ -145,10 +146,7 @@ router.patch("/updateUserflutter/:id", async (req, res) => {
     { _id: 1 }
   );
   console.log(foundBefore);
-  if (
-    foundBefore._id === null ||
-    foundBefore._id.toString() == req.params.id
-  ) {
+  if (foundBefore._id === null || foundBefore._id.toString() == req.params.id) {
     try {
       users
         .findOne({ _id: req.params.id })
@@ -178,22 +176,65 @@ router.patch("/updateUserflutter/:id", async (req, res) => {
 });
 
 //////////////////////////add to wishlist///////////////////////////////////
-router.post("/addWishlist/:id", async (req, res) => {
+router.post("/wishlist/:id", async (req, res) => {
+  console.log(req.body);
+
   await users.findByIdAndUpdate(req.params.id, {
-    $push: { wishlist: { title: req.body.title } },
+    $push: { wishlist: req.body.title },
   });
   res.send("done");
 });
 
 /////////////////////////delete from wishlist/////////////////////////////
-router.delete("/deleteFromWishlist/:id", async (req, res) => {
+router.delete("/wishlist/:id", async (req, res) => {
   const title = req.body.title;
+  console.log(req.body);
   const user = await users.findById(req.params.id);
   let wishlist = user.wishlist;
   wishlist = wishlist.filter((item) => {
-    return item.title != title;
+    return item !== title;
   });
   await users.findByIdAndUpdate(req.params.id, { wishlist });
+  res.send("done");
+});
+/////////////////////////get from wishlist/////////////////////////////
+
+router.get("/wishlist/:id", async (req, res) => {
+  const user = await users.findById(req.params.id);
+
+  res.send(user.wishlist);
+});
+
+///////////////////////////get userAds./////////////////////////////////
+router.get("/ads/:id", async (req, res) => {
+  let prodList = [];
+  // console.log(req.params.id);
+  users
+    .findById(req.params.id)
+    .then(async (user) => {
+      for (let i = 0; i < user.ads.length; i++) {
+        let p = await product.findOne({ _id: user.ads[i] });
+        console.log(p);
+        prodList.push(p);
+      }
+      res.send(prodList);
+    })
+    .catch((err) => res.send("failed"));
+});
+
+/////////////////// delete ads ////////////////////////
+
+router.delete("/ads/:id/:itemId", async (req, res) => {
+  console.log("ssssssssss");
+  const { id, itemId } = req.params;
+  const user = await users.findById(id);
+  let ads = user.ads;
+  console.log(ads);
+  ads = ads.filter((objectId) => {
+    return objectId.toString() !== itemId;
+  });
+  await users.findByIdAndUpdate(id, { ads });
+  await product.findByIdAndDelete({ _id: itemId });
   res.send("done");
 });
 
