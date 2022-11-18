@@ -256,11 +256,13 @@ router.post("/pendingAds/updatestatus/:id", function (req, res) {
 });
 
 ///////////////////////////// delete ad
-router.delete("/pendingAds/deleteAd/:id", function (req, res) {
+router.post("/pendingAds/deleteAd/:id", function (req, res) {
   product
-    .deleteOne({ _id: req.params.id })
-    .then(() => {
-      res.send({ success: true });
+    .findOne({ _id: req.params.id })
+    .then((data) => {
+      data.status = "canceled";
+      data.save();
+      res.send({ success: true, Data: data });
     })
     .catch((err) => {
       res.send(err);
@@ -393,29 +395,21 @@ router.get("/buyingOrders", async (req, res) => {
 });
 // update status of buyingOrders
 router.post("/buyingOrders/:id/updatestatus/:newStatus", function (req, res) {
-  // if delivered remove product from pro,ads,cart
-  //set product status active
-  
-  if (req.params.newStatus == "canceled") {
-
-    order.findOneAndRemove({ _id: req.params.id }).then(async () => {
-      let userss = await users.findOne(
-        { orders: { $in: [req.params.id] } },
-        { orders: 1 }
-      );
-      let orders = userss.orders.filter((order) => {
-        order["_id"] != req.params.id;
-      });
-      userss.orders = order;
-      userss.save();
-      res.send("success");
-      // users.findByIdAndUpdate(userss._id, { orders }).then((_)=>res.send("success"));
-    }).catch((err)=>res.send("failed"));
-  }
   order
     .findOne({ _id: req.params.id })
-    .then((data) => {
+    .then(async (data) => {
       data.status = req.params.newStatus;
+      if (req.params.newStatus == "canceled") {
+        await product.updateOne(
+          { _id: data.productId },
+          { $set: { status: "active" } }
+        );
+      } else if (req.params.newStatus == "delivered") {
+        await product.updateOne(
+          { _id: data.productId },
+          { $set: { status: "sold" } }
+        );
+      }
       console.log(data);
       data.save();
       res.json({ message: "success" });
@@ -431,14 +425,24 @@ router.post(
   function (req, res) {
     console.log("ok");
     console.log(req.params.personCase);
-
     if (req.params.personCase == "seller") {
       console.log(req.params.personCase);
       order
         .findOne({ _id: req.params.id })
-        .then((data) => {
-          data.status = req.params.newStatus;
+        .then(async (data) => {
+          data.exchangeProperties.status = req.params.newStatus;
           console.log(data);
+          if (req.params.newStatus == "canceled") {
+            await product.updateOne(
+              { _id: data.exchangeProperties.productId },
+              { $set: { status: "active" } }
+            );
+          } else if (req.params.newStatus == "delivered") {
+            await product.updateOne(
+              { _id: data.exchangeProperties.productId },
+              { $set: { status: "sold" } }
+            );
+          }
           data.save();
           res.json({ message: "success" });
         })
@@ -449,9 +453,20 @@ router.post(
       console.log(req.params.personCase);
       order
         .findOne({ _id: req.params.id })
-        .then((data) => {
-          data.exchangeProperties.status = req.params.newStatus;
+        .then(async (data) => {
+          data.status = req.params.newStatus;
           console.log(data);
+          if (req.params.newStatus == "canceled") {
+            await product.updateOne(
+              { _id: data.productId },
+              { $set: { status: "active" } }
+            );
+          } else if (req.params.newStatus == "delivered") {
+            await product.updateOne(
+              { _id: data.productId },
+              { $set: { status: "sold" } }
+            );
+          }
           data.save();
           res.json({ message: "success" });
         })
@@ -502,11 +517,12 @@ router.get("/exchangingOrders", async (req, res) => {
     });
     let ordersDetails = [];
     for (let i = 0; i < exchangingOrders.length; i++) {
-      let orderSellerProductDetails = await product.findOne(
+      let  
+      orderBuyerProductDetails = await product.findOne(
         { _id: exchangingOrders[i].productId },
         { title: 1, _id: 0, img: 1 }
       );
-      let orderBuyerProductDetails = await product.findOne(
+      let orderSellerProductDetails = await product.findOne(
         { _id: exchangingOrders[i].exchangeProperties.productId },
         { title: 1, _id: 0, img: 1 }
       );
@@ -533,6 +549,7 @@ router.get("/exchangingOrders", async (req, res) => {
     res.send(err);
   }
 });
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

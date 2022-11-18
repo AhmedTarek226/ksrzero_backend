@@ -20,6 +20,10 @@ const userCollection = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // confirmpassword: {
+    //   type: String,
+    //   required: true,
+    // },
     wishlist: [
       {
         type: String,
@@ -64,13 +68,13 @@ const userCollection = new mongoose.Schema(
       },
     time: {
       type: Date,
-      default: Date.now(),
+      default: Date.now,
       required: true,
     },
   },
   {
     versionKey: false,
-    strict: true,
+    strict: false,
   }
 );
 

@@ -39,6 +39,7 @@ const productSchema = new mongoose.Schema(
     time: {
       type: Date,
       default: Date.now,
+      // required: true,
     },
     img: {
       type: Array,
@@ -47,6 +48,7 @@ const productSchema = new mongoose.Schema(
     status: {
       type: String,
       default: "pending",
+      // required: true,
     },
     ableToExchange: {
       type: String,
@@ -57,11 +59,12 @@ const productSchema = new mongoose.Schema(
     },
     secondFilter: {
       type: String,
-      required: true,
     },
     thirdFilter: {
       type: String,
-      required: true,
+    },
+    location:{
+      type: String,
     },
     offers: [
       {
